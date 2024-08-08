@@ -1,35 +1,63 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useEffect, useState } from 'react';
+import { client } from '@xmpp/client';
+import './App.css';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [connected, setConnected] = useState(false);
+  const [clientInstance, setClientInstance] = useState(null);
+
+  useEffect(() => {
+    // Configura el cliente XMPP
+    const xmppClient = client({
+      service: 'ws://alumchat.lol:7070/ws/',
+      domain: 'alumchat.lol',
+      resource: 'web',
+      username: 'gar21285',
+      password: 'abner3210',
+    });
+
+    // Maneja los eventos
+    xmppClient.on('online', () => {
+      console.log('Connected to XMPP server');
+      setConnected(true);
+    });
+
+    xmppClient.on('offline', () => {
+      console.log('Disconnected from XMPP server');
+      setConnected(false);
+    });
+
+    xmppClient.on('error', (error) => {
+      console.error('XMPP error:', error);
+      setConnected(false);
+    });
+
+    xmppClient.on('stanza', (stanza) => {
+      console.log('Stanza received:', stanza);
+    });
+
+    // Inicia el cliente XMPP
+    xmppClient.start().catch((error) => {
+      console.error('Error starting XMPP client:', error);
+    });
+
+    // Limpiar al desmontar el componente
+    setClientInstance(xmppClient);
+    return () => {
+      if (xmppClient) {
+        xmppClient.stop().catch((error) => {
+          console.error('Error stopping XMPP client:', error);
+        });
+      }
+    };
+  }, []);
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <div className="App">
+      <h1>XMPP with React</h1>
+      <p>Status: {connected ? 'Connected' : 'Disconnected'}</p>
+    </div>
+  );
 }
 
-export default App
+export default App;
