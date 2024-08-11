@@ -1,42 +1,100 @@
-#root {
-  max-width: 1280px;
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  margin: 0;
+}
+
+.App {
+  max-width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 10px 10px;
   text-align: center;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.chat-container {
+  display: flex;
+  height: 500px; 
+  width: 1200px; 
+  max-width: 100%; 
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px auto; 
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+.section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 5px solid #ccc; 
 }
 
-.card {
-  padding: 2em;
+.section:last-child {
+  border-right: none; 
 }
 
-.read-the-docs {
-  color: #888;
+.section-buttons {
+  background-color: #f1f1f1;
+  padding: 10px; 
+  display: flex; 
+  justify-content: center;
+  align-items: center;
+  max-width: 40px; 
+  margin: 0 auto; 
+}
+
+.section-chats {
+  background-color: #fafafa;
+  padding: 10px; 
+  display: flex; 
+  justify-content: center;
+  align-items: center;
+  max-width: 300px; 
+  margin: 0 auto; 
+}
+
+.section-messages {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.messages {
+  flex-grow: 1;
+  padding: 1rem;
+  background-color: #f9f9f9;
+  overflow-y: scroll;
+  border-bottom: 1px solid #ccc;
+}
+
+.input-container {
+  display: flex;
+  padding: 1rem;
+  background-color: #fff;
+  border-top: 1px solid #ccc;
+}
+
+input[type="text"] {
+  flex-grow: 1;
+  padding: 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-right: 0.5rem;
+}
+
+button {
+  padding: 0.8rem 1.5rem;
+  border: none;
+  background-color: #007bff;
+  color: #fff;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #0056b3;
 }
