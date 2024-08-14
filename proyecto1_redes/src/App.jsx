@@ -5,6 +5,7 @@ import './index.css';
 function App() {
   const [connected, setConnected] = useState(false);
   const [contacts, setContacts] = useState([]);
+  const [selectedContact, setSelectedContact] = useState(null);  // Estado para el contacto seleccionado
   const [newMessage, setNewMessage] = useState('');
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactJid, setNewContactJid] = useState('');
@@ -49,6 +50,7 @@ function App() {
           jid: item.attrs.jid,
           name: item.attrs.name || item.attrs.jid,
           presenceType: 'unavailable',
+          statusMessage: '',  // Inicializa el mensaje de estado como vacío
         }));
         console.log('Roster received:', contactList);
         setContacts(contactList);
@@ -56,6 +58,7 @@ function App() {
         const from = stanza.attrs.from.split('/')[0];
         const type = stanza.attrs.type || 'available';
         const show = stanza.getChildText('show');
+        const statusMessage = stanza.getChildText('status') || '';  // Captura el mensaje de estado
 
         let presenceType;
         if (type === 'unavailable') {
@@ -70,16 +73,14 @@ function App() {
 
         setContacts((prevContacts) =>
           prevContacts.map((contact) =>
-            contact.jid === from ? { ...contact, presenceType } : contact
+            contact.jid === from ? { ...contact, presenceType, statusMessage } : contact
           )
         );
 
-        // Manejar la aceptación de la solicitud de amistad
         if (type === 'subscribed') {
           console.log(`${from} accepted your friend request.`);
         } else if (type === 'subscribe') {
           console.log(`${from} wants to be your friend.`);
-          // Aquí podrías enviar una respuesta automática de aceptación
           const presenceSubscribed = xml('presence', { to: from, type: 'subscribed' });
           xmppClientInstance.send(presenceSubscribed);
         }
@@ -116,7 +117,6 @@ function App() {
   const handleSendContactRequest = async () => {
     if (newContactJid) {
       try {
-        // Enviar solicitud de amistad (presencia tipo subscribe)
         const presenceSubscribe = xml('presence', { to: newContactJid, type: 'subscribe' });
         console.log(`Sending friend request to ${newContactJid}:`, presenceSubscribe.toString());
         await xmppClient.send(presenceSubscribe);
@@ -125,6 +125,10 @@ function App() {
         alert('Error sending friend request');
       }
     }
+  };
+
+  const handleSelectContact = (contact) => {
+    setSelectedContact(contact);  // Actualiza el contacto seleccionado
   };
 
   return (
@@ -167,11 +171,18 @@ function App() {
               <div className="w-full bg-white border border-gray-300 rounded-lg p-2 overflow-y-auto max-h-full">
                 {contacts.length > 0 ? (
                   contacts.map((contact) => (
-                    <div key={contact.jid} className="p-2 border-b border-gray-200 hover:bg-indigo-100">
-                      <p className="font-medium">{contact.name}</p>
-                      <p className={`text-sm ${contact.presenceType === 'available' ? 'text-green-500' : 'text-red-500'}`}>
-                        {contact.presenceType}
-                      </p>
+                    <div key={contact.jid} className="p-2 border-b border-gray-200 hover:bg-indigo-100 flex justify-between items-center">
+                      <div>
+                        <p className="font-medium">{contact.name}</p>
+                        <p className={`text-sm ${contact.presenceType === 'available' ? 'text-green-500' : 'text-red-500'}`}>
+                          {contact.presenceType}
+                        </p>
+                      </div>
+                      <button 
+                        onClick={() => handleSelectContact(contact)} 
+                        className="ml-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-blue-600">
+                        i
+                      </button>
                     </div>
                   ))
                 ) : (
@@ -182,17 +193,28 @@ function App() {
 
             <div className="flex flex-col w-3/4 p-4 bg-gray-50">
               <div className="flex-grow bg-gray-100 border border-gray-300 rounded-lg p-4 overflow-auto">
+                {selectedContact ? (
+                  <div>
+                    <h2 className="text-2xl font-bold mb-4">Detalles del contacto</h2>
+                    <p><strong>JID:</strong> {selectedContact.jid}</p>
+                    <p><strong>Nombre:</strong> {selectedContact.name}</p>
+                    <p><strong>Estado:</strong> {selectedContact.presenceType}</p>
+                    <p><strong>Mensaje de estado:</strong> {selectedContact.statusMessage || 'No disponible'}</p>
+                  </div>
+                ) : (
+                  <p className="text-center">Selecciona un contacto para ver los detalles.</p>
+                )}
               </div>
               <div className="flex items-center mt-4">
                 <input
                   type="text"
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type your message here..."
-                  className="flex-grow p-3 border border-gray-300 rounded-lg mr-2 bg-white text-black"
+                  placeholder="Escribe tu mensaje..."
+                  className="w-full p-2 border border-gray-300 rounded-lg mr-2"
                 />
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                  Send
+                <button className="bg-blue-600 text-white rounded-lg p-2 hover:bg-blue-700">
+                  Enviar
                 </button>
               </div>
             </div>
