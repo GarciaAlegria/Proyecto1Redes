@@ -5,7 +5,8 @@ import './index.css';
 function App() {
   const [connected, setConnected] = useState(false);
   const [contacts, setContacts] = useState([]);
-  const [selectedContact, setSelectedContact] = useState(null);  // Estado para el contacto seleccionado
+  const [selectedContact, setSelectedContact] = useState(null);
+  const [chattingContact, setChattingContact] = useState(null);  // Nuevo estado para el contacto con el que se está chateando
   const [newMessage, setNewMessage] = useState('');
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContactJid, setNewContactJid] = useState('');
@@ -23,7 +24,7 @@ function App() {
     xmppClientInstance.on('online', async () => {
       console.log('Connected to XMPP server');
       setConnected(true);
-      setXmppClient(xmppClientInstance);  // Set the client instance to state
+      setXmppClient(xmppClientInstance);
 
       try {
         await xmppClientInstance.send(xml('presence'));
@@ -50,7 +51,7 @@ function App() {
           jid: item.attrs.jid,
           name: item.attrs.name || item.attrs.jid,
           presenceType: 'unavailable',
-          statusMessage: '',  // Inicializa el mensaje de estado como vacío
+          statusMessage: '',
         }));
         console.log('Roster received:', contactList);
         setContacts(contactList);
@@ -58,7 +59,7 @@ function App() {
         const from = stanza.attrs.from.split('/')[0];
         const type = stanza.attrs.type || 'available';
         const show = stanza.getChildText('show');
-        const statusMessage = stanza.getChildText('status') || '';  // Captura el mensaje de estado
+        const statusMessage = stanza.getChildText('status') || '';
 
         let presenceType;
         if (type === 'unavailable') {
@@ -83,6 +84,17 @@ function App() {
           console.log(`${from} wants to be your friend.`);
           const presenceSubscribed = xml('presence', { to: from, type: 'subscribed' });
           xmppClientInstance.send(presenceSubscribed);
+        }
+      } else if (stanza.is('message')) {
+        const from = stanza.attrs.from.split('/')[0];
+        const body = stanza.getChildText('body');
+
+        if (body && from === chattingContact?.jid) {
+          console.log(`Message from ${from}:`, body);
+          setChattingContact((prev) => ({
+            ...prev,
+            messages: [...prev.messages, { from, body }],
+          }));
         }
       }
     });
@@ -128,7 +140,34 @@ function App() {
   };
 
   const handleSelectContact = (contact) => {
-    setSelectedContact(contact);  // Actualiza el contacto seleccionado
+    setSelectedContact(contact);
+    setChattingContact(null); // Limpiar el chat si seleccionas detalles del contacto
+  };
+
+  const handleStartChat = (contact) => {
+    setChattingContact({ ...contact, messages: [] });
+    setSelectedContact(null); // Limpiar los detalles si seleccionas chatear
+  };
+
+  const handleSendMessage = async () => {
+    if (chattingContact && newMessage) {
+      const messageStanza = xml(
+        'message',
+        { to: chattingContact.jid, type: 'chat' },
+        xml('body', {}, newMessage)
+      );
+
+      try {
+        await xmppClient.send(messageStanza);
+        setChattingContact((prev) => ({
+          ...prev,
+          messages: [...prev.messages, { from: 'me', body: newMessage }],
+        }));
+        setNewMessage('');
+      } catch (error) {
+        console.error('Error sending message:', error);
+      }
+    }
   };
 
   return (
@@ -144,8 +183,8 @@ function App() {
             <div className="bg-indigo-700 p-4 w-1/4 border-r border-gray-300 flex flex-col items-center">
               <div className="flex justify-between items-center w-full mb-4">
                 <h2 className="text-xl font-semibold">Contactos</h2>
-                <button 
-                  onClick={handleAddContact} 
+                <button
+                  onClick={handleAddContact}
                   className="ml-2 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-green-600">
                   +
                 </button>
@@ -160,8 +199,8 @@ function App() {
                     onChange={(e) => setNewContactJid(e.target.value)}
                     className="w-full p-2 mb-2 border border-gray-300 rounded-lg"
                   />
-                  <button 
-                    onClick={handleSendContactRequest} 
+                  <button
+                    onClick={handleSendContactRequest}
                     className="w-full bg-blue-600 text-white rounded-lg p-2 hover:bg-blue-700">
                     Enviar
                   </button>
@@ -178,45 +217,65 @@ function App() {
                           {contact.presenceType}
                         </p>
                       </div>
-                      <button 
-                        onClick={() => handleSelectContact(contact)} 
-                        className="ml-2 bg-blue-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-blue-600">
-                        i
-                      </button>
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleSelectContact(contact)}
+                          className="bg-blue-600 text-white rounded-lg px-2 py-1 hover:bg-blue-700">
+                          i
+                        </button>
+                        <button
+                          onClick={() => handleStartChat(contact)}
+                          className="bg-green-600 text-white rounded-lg px-2 py-1 hover:bg-green-700">
+                          Chat
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-center">No contacts available</p>
+                  <p>No contacts available</p>
                 )}
               </div>
             </div>
 
-            <div className="flex flex-col w-3/4 p-4 bg-gray-50">
-              <div className="flex-grow bg-gray-100 border border-gray-300 rounded-lg p-4 overflow-auto">
-                {selectedContact ? (
-                  <div>
-                    <h2 className="text-2xl font-bold mb-4">Detalles del contacto</h2>
-                    <p><strong>JID:</strong> {selectedContact.jid}</p>
-                    <p><strong>Nombre:</strong> {selectedContact.name}</p>
-                    <p><strong>Estado:</strong> {selectedContact.presenceType}</p>
-                    <p><strong>Mensaje de estado:</strong> {selectedContact.statusMessage || 'No disponible'}</p>
+            <div className="flex-1 p-4">
+              {selectedContact && (
+                <div className="bg-white p-4 rounded-lg shadow-md">
+                  <h2 className="text-xl font-semibold mb-2">Detalles del Contacto</h2>
+                  <p className="mb-2"><strong>JID:</strong> {selectedContact.jid}</p>
+                  <p className="mb-2"><strong>Nombre:</strong> {selectedContact.name}</p>
+                  <p className="mb-2"><strong>Estado:</strong> {selectedContact.presenceType}</p>
+                  <p className="mb-2"><strong>Mensaje de estado:</strong> {selectedContact.statusMessage}</p>
+                </div>
+              )}
+
+              {chattingContact && (
+                <div className="bg-white p-4 rounded-lg shadow-md flex flex-col h-full">
+                  <h2 className="text-xl font-semibold mb-2">Chat con {chattingContact.name}</h2>
+                  <div className="flex-1 overflow-y-auto mb-4 p-2 bg-gray-200 rounded-lg">
+                    {chattingContact.messages.map((message, index) => (
+                      <div
+                        key={index}
+                        className={`p-2 my-1 rounded-lg ${message.from === 'me' ? 'bg-green-500 text-white self-end' : 'bg-blue-500 text-white'}`}>
+                        {message.body}
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <p className="text-center">Selecciona un contacto para ver los detalles.</p>
-                )}
-              </div>
-              <div className="flex items-center mt-4">
-                <input
-                  type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Escribe tu mensaje..."
-                  className="w-full p-2 border border-gray-300 rounded-lg mr-2"
-                />
-                <button className="bg-blue-600 text-white rounded-lg p-2 hover:bg-blue-700">
-                  Enviar
-                </button>
-              </div>
+                  <div className="flex">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1 p-2 border border-gray-300 rounded-lg"
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      className="ml-2 bg-blue-600 text-white rounded-lg px-4 hover:bg-blue-700">
+                      Send
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
