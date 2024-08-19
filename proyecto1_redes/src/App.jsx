@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { client, xml } from '@xmpp/client';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import './index.css';
 
 const domain = 'alumchat.lol';
@@ -59,6 +61,18 @@ function App() {
         const froms = stanza.attr('from');
         const from = froms.split('/')[0];
         const body = stanza.getChild('body')?.text();
+        
+        // Mostrar notificación cuando se reciba un mensaje
+        toast.info(`New message from ${from}: ${body}`, {
+          position: "top-right",
+          autoClose: 5000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
+          progress: undefined,
+        });
+
         setMessages((prevMessages) => [...prevMessages, { from, body }]);
       } else if (stanza.is('presence')) {
         const from = stanza.attr('from').split('/')[0];
@@ -190,32 +204,35 @@ function App() {
                     <p><strong>Estado:</strong> {selectedContact.presenceType}</p>
                     <p><strong>Mensaje de estado:</strong> {selectedContact.statusMessage}</p>
                     <div className="mt-4">
-                      <h3 className="text-xl font-semibold">Chat de mensajes</h3>
-                      <div className="bg-white p-2 border border-gray-300 rounded-lg h-48 overflow-y-auto">
-                        {messages.filter(message => message.from === selectedContact.jid || message.to === selectedContact.jid).map((msg, index) => (
-                          <p key={index} className={`mb-2 ${msg.from === 'gar21285' ? 'text-blue-700' : 'text-gray-700'}`}>
-                            {msg.from}: {msg.body}
-                          </p>
-                        ))}
+                      <h3 className="text-xl font-semibold">Conversación</h3>
+                      <div className="mt-2 bg-white border border-gray-300 rounded-lg p-2 max-h-80 overflow-y-auto">
+                        {messages
+                          .filter(msg => msg.from === selectedContact.jid || msg.to === selectedContact.jid).map((msg, index) => (
+                            <div key={index} className={`mb-2 ${msg.from === 'gar21285' ?  'text-blue-700' : 'text-gray-700'}`}>
+                              <p className="inline-block bg-gray-200 p-2 rounded-lg">
+                              {msg.from}: {msg.body}
+                              </p>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   </div>
                 ) : (
-                  <p>Select a contact to view details.</p>
+                  <p className="text-center">Select a contact to view conversation</p>
                 )}
               </div>
               {selectedContact && (
-                <form onSubmit={handleSendMessage} className="mt-4">
+                <form onSubmit={handleSendMessage} className="flex mt-4">
                   <input
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type your message"
-                    className="w-full p-2 border border-gray-300 rounded-lg"
+                    placeholder="Type a message..."
+                    className="flex-grow p-2 border border-gray-300 rounded-l-lg"
                   />
                   <button 
                     type="submit" 
-                    className="w-full mt-2 bg-blue-600 text-white rounded-lg p-2 hover:bg-blue-700">
+                    className="bg-blue-600 text-white rounded-r-lg p-2 hover:bg-blue-700">
                     Send
                   </button>
                 </form>
@@ -223,6 +240,7 @@ function App() {
             </div>
           </div>
         </div>
+        <ToastContainer />
       </div>
     </div>
   );
