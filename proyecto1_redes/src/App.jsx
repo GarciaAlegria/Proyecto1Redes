@@ -17,6 +17,8 @@ function App() {
   const [xmppClient, setXmppClient] = useState(null);
   const [messages, setMessages] = useState([]);
   const [status, setStatus] = useState('Offline');
+  const [showPresenceInput, setShowPresenceInput] = useState(false);
+  const [presenceMessage, setPresenceMessage] = useState('');
 
   useEffect(() => {
     const xmppClientInstance = client({
@@ -137,6 +139,19 @@ function App() {
     setSelectedContact(contact);
   };
 
+  const handleSetPresence = () => {
+    setShowPresenceInput(!showPresenceInput);
+  };
+
+  const handleSendPresence =  () => {
+    if (client && presenceMessage.trim()) {
+      const presence = xml('presence', {}, xml('status', {}, presenceMessage));
+      xmppClient.send(presence);
+      setPresenceMessage('');
+      setShowPresenceInput(false);
+    }
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-600 to-blue-500 text-white">
       <div className="w-full h-fit p-4 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden text-black">
@@ -154,6 +169,11 @@ function App() {
                   className="ml-2 bg-green-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-green-600">
                   +
                 </button>
+                <button
+                  onClick={handleSetPresence}
+                  className="ml-2 bg-yellow-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-yellow-600">
+                  😊
+                </button>
               </div>
               {showAddContact && (
                 <div className="w-full mb-4 bg-white p-2 rounded-lg">
@@ -170,6 +190,22 @@ function App() {
                     Enviar
                   </button>
                 </div>
+              )}
+              {showPresenceInput && (
+                <div className="w-full mb-4 bg-white p-2 rounded-lg">
+                  <input
+                    type="text"
+                    placeholder="Enter presence message"
+                    value={presenceMessage}
+                    onChange={(e) => setPresenceMessage(e.target.value)}
+                    className="w-full p-2 mb-2 border border-gray-300 rounded-lg"
+                  />
+                  <button
+                    onClick={handleSendPresence}
+                    className="w-full bg-blue-600 text-white rounded-lg p-2 hover:bg-blue-700">
+                    Send
+                  </button>
+                  </div>
               )}
               <div className="w-full bg-white border border-gray-300 rounded-lg p-2 overflow-y-auto max-h-full">
                 {contacts.length > 0 ? (
