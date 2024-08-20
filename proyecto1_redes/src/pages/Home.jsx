@@ -23,11 +23,20 @@ function Home() {
   const navigate = useNavigate();
 
   useEffect(() => {
+  const username = sessionStorage.getItem('username');
+  const password = sessionStorage.getItem('password');
+
+  if (!username || !password) {
+    console.error('No se encontraron credenciales de usuario');
+    navigate('/login'); // Redirige al login si no hay credenciales
+    return;
+  }
+
     const xmppClientInstance = client({
       service: service,
       domain: domain,
-      username: 'gar21285', // Use your username
-      password: 'abner3210', // Use your password
+      username: username, 
+      password: password,
     });
 
     xmppClientInstance.on('online', async (main) => {

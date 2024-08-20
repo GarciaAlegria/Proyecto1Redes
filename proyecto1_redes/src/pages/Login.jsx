@@ -7,12 +7,39 @@ function Login() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    if (username === 'gar21285' && password === 'abner3210') {
-      navigate('/Home'); 
-    } else {
-      alert('Credenciales incorrectas');
+  // Configurar el cliente XMPP
+  const xmppClient = client({
+    service: 'ws://alumchat.lol:7070/ws/', 
+    domain: 'alumchat.lol', 
+    resource: 'client', 
+    username, 
+    password, 
+  });
+
+  xmppClient.on('error', err => {
+    console.error('XMPP Error:', err);
+    alert('Credenciales incorrectas o error en el servidor XMPP');
+  });
+
+  xmppClient.on('online', address => {
+    console.log('Conectado como:', address.toString());
+    // Guardar en sessionStorage
+    sessionStorage.setItem('username', username);
+    sessionStorage.setItem('password', password);
+    navigate('/Home'); // Navega a la página principal después de iniciar sesión correctamente
+  });
+
+  const handleLogin = async () => {
+    try {
+      await xmppClient.start(); // Inicia la conexión XMPP
+    } catch (err) {
+      console.error('Login failed:', err);
+      alert('No se pudo iniciar sesión, revisa tus credenciales');
     }
+  };
+
+  const handleRegister = () => {
+    navigate('/Register'); 
   };
 
   return (
@@ -21,7 +48,7 @@ function Login() {
         <h2 className="text-3xl font-bold mb-6 text-center">Login</h2>
         <input
           type="text"
-          placeholder="Username"
+          placeholder="Username without @alumchat.lol"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="w-full mb-4 p-2 border border-gray-300 rounded-lg"
@@ -33,12 +60,20 @@ function Login() {
           onChange={(e) => setPassword(e.target.value)}
           className="w-full mb-6 p-2 border border-gray-300 rounded-lg"
         />
-        <button
-          onClick={handleLogin}
-          className="bg-blue-500 text-white w-full p-2 rounded-lg hover:bg-blue-600"
-        >
-          Login
-        </button>
+        <div className="flex justify-between">
+          <button
+            onClick={handleLogin}
+            className="bg-blue-500 text-white w-full p-2 rounded-lg hover:bg-blue-600 mr-2"
+          >
+            Login
+          </button>
+          <button
+            onClick={handleRegister}
+            className="bg-gray-500 text-white w-full p-2 rounded-lg hover:bg-gray-600"
+          >
+            Registrarse
+          </button>
+        </div>
       </div>
     </div>
   );
