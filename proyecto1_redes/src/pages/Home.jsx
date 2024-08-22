@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { client, xml } from '@xmpp/client';
 import { ToastContainer, toast } from 'react-toastify';
+import { v4 as uuidv4 } from "uuid";
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from 'react-router-dom'; 
 
@@ -19,18 +20,21 @@ function Home() {
   const [status, setStatus] = useState('Offline');
   const [showPresenceInput, setShowPresenceInput] = useState(false);
   const [presenceMessage, setPresenceMessage] = useState('');
+  const [uploadfiles, setuploadFiles] = useState([]);
+  const [uploadfile, setuploadFile] = useState(null);
 
   const navigate = useNavigate();
-
-  useEffect(() => {
   const username = sessionStorage.getItem('username');
   const password = sessionStorage.getItem('password');
 
-  if (!username || !password) {
-    console.error('No se encontraron credenciales de usuario');
-    navigate('/login'); // Redirige al login si no hay credenciales
-    return;
-  }
+  useEffect(() => {
+
+
+    if (!username || !password) {
+      console.error('No se encontraron credenciales de usuario');
+      navigate('/login'); // Redirige al login si no hay credenciales
+      return;
+    }
 
     const xmppClientInstance = client({
       service: service,
@@ -105,6 +109,10 @@ function Home() {
             contact.jid === from ? { ...contact, presenceType, statusMessage } : contact
           )
         );
+      } else if (stanza.is('iq')) {
+         if(stanza.attr('type') === 'result' && stanza.attr('from') === 'httpfileupload.alumchat.lol') {
+          await handleupload(stanza, xmppClientInstance);
+        }
       }
     });
 
@@ -132,14 +140,13 @@ function Home() {
     }
   };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (xmppClient && newMessage.trim() && selectedContact) {
-      setMessages((prevMessages) => [...prevMessages, { from: 'gar21285', body: newMessage, to: selectedContact.jid }]);
+  const handleSendMessage = (messagesends) => {
+    if (xmppClient && messagesends.trim() && selectedContact) {
+      setMessages((prevMessages) => [...prevMessages, { from: 'You', body: messagesends, to: selectedContact.jid }]);
       const message = xml(
         'message',
         { type: 'chat', to: selectedContact.jid },
-        xml('body', {}, newMessage)
+        xml('body', {}, messagesends)
       );
       xmppClient.send(message);
       setNewMessage('');
@@ -171,11 +178,79 @@ function Home() {
     }
   };
 
+  const handleupload = async (stanza, xmppClientInstance) => {
+    const slots = stanza.getChild('slot');
+    const urlput = slots.getChild('put').attr('url');
+    const urlget = slots.getChild('get').attr('url');
+    const idconf = stanza.attr('id');
+    let file
+    setuploadFiles((prevFiles) => { file = prevFiles.find(sub => sub.id === idconf);
+      return prevFiles;
+    });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    if (file === undefined || file === null) {
+      console.error("File not found");
+      return
+    }
+    try {
+      const result = await fetch(urlput, {
+        method: 'PUT',
+        body: file.data,
+        headers: {
+          "Content-Type": file.data.type,
+          "Content-Length": file.data.size.toString(),
+        },
+      }); 
+      if (!result.ok) {
+        console.error("Error uploading file:", result);
+        return
+      }
+
+      const message = xml('message', { to: file.to, type: 'chat'}, xml('body', {}, urlget));
+      xmppClientInstance.send(message);
+      setMessages((prevMessages) => [...prevMessages, { from: 'You', body: urlget, to: file.to }]);
+      console.log("File uploaded and message sent successfully");
+        } catch (error) {
+            console.error("Error uploading file or sending message:", error);
+        }
+    }
+    const handlefilesend = () => {
+      const filenew = {
+        id: uuidv4(),
+        name: uploadfile.name,
+        size: uploadfile.size,
+        type: uploadfile.type,
+        data: uploadfile,
+        to: selectedContact.jid,
+      }
+      setuploadFiles((prevFiles) => [...prevFiles, filenew]);
+
+      const message = xml('iq', { to: 'httpfileupload.alumchat.lol', type: 'get', id: filenew.id },
+        xml('request', { xmlns: 'urn:xmpp:http:upload:0', filename: filenew.name, size: filenew.size, 'contentType': filenew.type }))
+      xmppClient.send(message);
+      setuploadFile(null);
+    };
+
+    const handlefilechange = async (e) => {
+      e.preventDefault();
+    
+      if (xmppClient && uploadfile !== null) {
+        // Si hay un archivo seleccionado, lo envía
+        await handlefilesend();
+      } else {
+        // Si no hay archivo, envía el mensaje de texto
+        handleSendMessage(newMessage);
+        setNewMessage('');
+      }
+    };
+    
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-purple-600 to-blue-500 text-white">
       <div className="w-full h-fit p-4 bg-white border border-gray-300 rounded-lg shadow-lg overflow-hidden text-black">
         <h1 className="text-4xl font-bold mb-6 text-center">XMPP Chat App</h1>
-        <p className={`mb-6 text-rigth ${connected ? 'text-green-300' : 'text-red-300'}`}>
+        <p className={`mb-6 text-center ${connected ? 'text-green-300' : 'text-red-300'}`}>
           Status: {connected ? status : 'Disconnected'}
         </p>
         <button
@@ -239,7 +314,7 @@ function Home() {
                     <div key={contact.jid} className="p-2 border-b border-gray-200 hover:bg-indigo-100 flex justify-between items-center">
                       <div>
                         <p className="font-medium">{contact.name}</p>
-                        <p className={`text-sm ${contact.presenceType === 'available' ? 'text-green-500' : 'text-red-500'}`}>
+                        <p className={`text-left ${contact.presenceType === 'available' ? 'text-green-500' : 'text-red-500'}`}>
                           {contact.presenceType}
                         </p>
                       </div>
@@ -260,17 +335,17 @@ function Home() {
               <div className="flex-grow bg-gray-100 border border-gray-300 rounded-lg p-4 overflow-auto">
                 {selectedContact ? (
                   <div>
-                    <h2 className="text-2xl font-bold mb-4">Detalles del contacto</h2>
-                    <p><strong>JID:</strong> {selectedContact.jid}</p>
-                    <p><strong>Nombre:</strong> {selectedContact.name}</p>
-                    <p><strong>Estado:</strong> {selectedContact.presenceType}</p>
-                    <p><strong>Mensaje de estado:</strong> {selectedContact.statusMessage}</p>
+                    <h2 className="text-2xl  font-bold mb-4">Detalles del contacto</h2>
+                    <p className='text-left'><strong>JID:</strong> {selectedContact.jid}</p>
+                    <p className='text-left'><strong>Nombre:</strong> {selectedContact.name}</p>
+                    <p className='text-left'><strong>Estado:</strong> {selectedContact.presenceType}</p>
+                    <p className='text-left'><strong>Mensaje de estado:</strong> {selectedContact.statusMessage}</p>
                     <div className="mt-4">
-                      <h3 className="text-xl font-semibold">Conversación</h3>
+                      <h3 className="text-left font-bold mb-4">Conversación</h3>
                       <div className="mt-2 bg-white border border-gray-300 rounded-lg p-2 max-h-80 overflow-y-auto">
                         {messages
                           .filter(msg => msg.from === selectedContact.jid || msg.to === selectedContact.jid).map((msg, index) => (
-                            <div key={index} className={`mb-2 ${msg.from === 'gar21285' ?  'text-blue-700' : 'text-gray-700'}`}>
+                            <div key={index} className={`mb-2 text-left ${msg.from === 'gar21285' ?  'text-blue-700' : 'text-gray-700'}`}>
                               <p className="inline-block bg-gray-200 p-2 rounded-lg">
                               {msg.from}: {msg.body}
                               </p>
@@ -284,17 +359,24 @@ function Home() {
                 )}
               </div>
               {selectedContact && (
-                <form onSubmit={handleSendMessage} className="flex mt-4">
+                <form onSubmit={handlefilechange} className="flex mt-4">
+                  
                   <input
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="Type a message..."
+                    placeholder="Enter your message"
                     className="flex-grow p-2 border border-gray-300 rounded-l-lg"
                   />
-                  <button 
-                    type="submit" 
-                    className="bg-blue-600 text-white rounded-r-lg p-2 hover:bg-blue-700">
+                  <input
+                    type="file"
+                    onChange={(e) => setuploadFile(e.target.files[0])}  // Guardar archivo seleccionado
+                    className="p-2 border border-gray-300 rounded-r-lg"
+                  />
+                  <button
+                    onClick={handlefilechange}  // Manejar envío del mensaje o archivo
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg ml-2"
+                  >
                     Send
                   </button>
                 </form>
