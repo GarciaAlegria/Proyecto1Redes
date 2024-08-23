@@ -244,6 +244,13 @@ function Home() {
         setNewMessage('');
       }
     };
+
+    const deleteAccount = async () => {
+      const response = await xmppClient.iqCaller.request(xml('iq', { type: 'set' }, xml('query', { xmlns: 'jabber:iq:register' }, xml('remove'))
+    )
+  )
+  console.log(response.toString())
+};
     
 
   return (
@@ -258,6 +265,12 @@ function Home() {
           className="bg-red-500 text-white rounded-lg px-4 py-2 mb-4 hover:bg-red-600"
         >
           Logout
+        </button>
+        <button className="bg-yellow-700 text-white rounded-lg px-4 py-2 mb-4 hover:bg-yellow-600 " onClick={async() => {
+            await deleteAccount()
+            navigate('/')
+          }}>
+          Delete Account
         </button>
         
         <div id="app">
