@@ -29,25 +29,25 @@ function Home() {
 
   useEffect(() => {
 
-
+    // verify if username and password are stored in sessionStorage
     if (!username || !password) {
       console.error('No se encontraron credenciales de usuario');
-      navigate('/login'); // Redirige al login si no hay credenciales
+      navigate('/login'); // redirect to login page
       return;
     }
-
+    // create XMPP client
     const xmppClientInstance = client({
       service: service,
       domain: domain,
       username: username, 
       password: password,
     });
-
+    // Register event listeners
     xmppClientInstance.on('online', async (main) => {
       console.log('Connected to XMPP server, Connected as', main.toString());
       setConnected(true);
       setXmppClient(xmppClientInstance);
-
+      // Send presence to server
       const roStanza = xml('iq', { type: 'get' }, xml('query', { xmlns: 'jabber:iq:roster' }));
       const Resultros = await xmppClientInstance.iqCaller.request(roStanza);
       const Itemsros = Resultros.getChild('query').getChildren('item');
@@ -58,28 +58,28 @@ function Home() {
         statusMessage: '',
       }));
       setContacts(Listcontac);
-
+      // Send presence to all contacts
       Listcontac.forEach(contact => {
         const presenceStanza = xml('presence', { to: contact.jid, type: 'subscribe' });
         xmppClientInstance.send(presenceStanza);
       });
-
+      // Send presence to server to be online
       await xmppClientInstance.send(xml('presence'));
       setStatus('Online');
     });
-
+    // Event listener for failed login
     xmppClientInstance.on('offline', () => {
       console.log('Disconnected from XMPP server');
       setConnected(false);
     });
-
+    // Event listener for incoming stanzas
     xmppClientInstance.on('stanza', async (stanza) => {
       if (stanza.is('message') && stanza.getChild('body')) {
         const froms = stanza.attr('from');
         const from = froms.split('/')[0];
         const body = stanza.getChild('body')?.text();
         
-        // Mostrar notificación cuando se reciba un mensaje
+        // Show toast notification with new message
         toast.info(`New message from ${from}: ${body}`, {
           position: "top-right",
           autoClose: 5000,
@@ -89,7 +89,7 @@ function Home() {
           draggable: true,
           progress: undefined,
         });
-
+        // Add message to messages state array
         setMessages((prevMessages) => [...prevMessages, { from, body }]);
       } else if (stanza.is('presence')) {
         const from = stanza.attr('from').split('/')[0];
@@ -115,18 +115,18 @@ function Home() {
         }
       }
     });
-
+    // Start the XMPP client instance
     xmppClientInstance.start().catch(console.error);
-
+    // Cleanup function to stop the XMPP client
     return () => {
       xmppClientInstance.stop().catch(console.error);
     };
   }, []);
-
+  // Function to handle adding a new contact
   const handleAddContact = () => {
     setShowAddContact(!showAddContact);
   };
-
+  // Function to send a contact request
   const handleSendContactRequest = async () => {
     if (newContactJid) {
       try {
@@ -139,7 +139,7 @@ function Home() {
       }
     }
   };
-
+  // Function to handle sending a message
   const handleSendMessage = (messagesends) => {
     if (xmppClient && messagesends.trim() && selectedContact) {
       setMessages((prevMessages) => [...prevMessages, { from: 'You', body: messagesends, to: selectedContact.jid }]);
@@ -152,32 +152,33 @@ function Home() {
       setNewMessage('');
     }
   };
-
+  // Function to handle selecting a contact
   const handleSelectContact = (contact) => {
     setSelectedContact(contact);
   };
-
+  // Function to handle setting presence message
   const handleSetPresence = () => {
     setShowPresenceInput(!showPresenceInput);
   };
-
+  // Function to handle sending presence message
   const handleSendPresence =  () => {
     if (client && presenceMessage.trim()) {
       const presence = xml('presence', {}, xml('status', {}, presenceMessage));
+      alert('Presence message sent');
       xmppClient.send(presence);
       setPresenceMessage('');
       setShowPresenceInput(false);
     }
   };
-
+  // Function to handle logging out
   const handleLogout = () => {
     if (xmppClient) {
-      xmppClient.stop(); // Cerrar sesión
+      xmppClient.stop(); // close the XMPP connection
       setConnected(false);
-      navigate('/'); // Redirigir a la pantalla de inicio de sesión
+      navigate('/'); // redirect to login page
     }
   };
-
+  // Function to handle uploading a file and sending a message
   const handleupload = async (stanza, xmppClientInstance) => {
     const slots = stanza.getChild('slot');
     const urlput = slots.getChild('put').attr('url');
@@ -188,7 +189,7 @@ function Home() {
       return prevFiles;
     });
     await new Promise(resolve => setTimeout(resolve, 0));
-
+    // Verify if file exists and is not null
     if (file === undefined || file === null) {
       console.error("File not found");
       return
@@ -206,7 +207,7 @@ function Home() {
         console.error("Error uploading file:", result);
         return
       }
-
+      // Send message with file URL to contact
       const message = xml('message', { to: file.to, type: 'chat'}, xml('body', {}, urlget));
       xmppClientInstance.send(message);
       setMessages((prevMessages) => [...prevMessages, { from: 'You', body: urlget, to: file.to }]);
@@ -215,6 +216,7 @@ function Home() {
             console.error("Error uploading file or sending message:", error);
         }
     }
+    // Function to handle sending a file
     const handlefilesend = () => {
       const filenew = {
         id: uuidv4(),
@@ -225,26 +227,26 @@ function Home() {
         to: selectedContact.jid,
       }
       setuploadFiles((prevFiles) => [...prevFiles, filenew]);
-
+      // Send file upload request to server
       const message = xml('iq', { to: 'httpfileupload.alumchat.lol', type: 'get', id: filenew.id },
         xml('request', { xmlns: 'urn:xmpp:http:upload:0', filename: filenew.name, size: filenew.size, 'contentType': filenew.type }))
       xmppClient.send(message);
       setuploadFile(null);
     };
-
+    // Function to handle sending a file or message
     const handlefilechange = async (e) => {
       e.preventDefault();
-    
+      // Verify if XMPP client and selected contact exist
       if (xmppClient && uploadfile !== null) {
-        // Si hay un archivo seleccionado, lo envía
+        // Verify if there is a file to send
         await handlefilesend();
       } else {
-        // Si no hay archivo, envía el mensaje de texto
+        // Verify if there is a message to send
         handleSendMessage(newMessage);
         setNewMessage('');
       }
     };
-
+    // Function to delete account
     const deleteAccount = async () => {
       const response = await xmppClient.iqCaller.request(xml('iq', { type: 'set' }, xml('query', { xmlns: 'jabber:iq:register' }, xml('remove'))
     )

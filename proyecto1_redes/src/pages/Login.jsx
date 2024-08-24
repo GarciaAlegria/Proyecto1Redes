@@ -7,7 +7,7 @@ function Login() {
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  // Configurar el cliente XMPP
+  // create XMPP client
   const xmppClient = client({
     service: 'ws://alumchat.lol:7070/ws/', 
     domain: 'alumchat.lol', 
@@ -15,29 +15,29 @@ function Login() {
     username, 
     password, 
   });
-
+  // Register event listeners
   xmppClient.on('error', err => {
     console.error('XMPP Error:', err);
     alert('Credenciales incorrectas o error en el servidor XMPP');
   });
-
+  // Event listener for successful login
   xmppClient.on('online', address => {
     console.log('Conectado como:', address.toString());
     // Guardar en sessionStorage
     sessionStorage.setItem('username', username);
     sessionStorage.setItem('password', password);
-    navigate('/Home'); // Navega a la página principal después de iniciar sesión correctamente
+    navigate('/Home'); // navigate to Home page after successful login
   });
-
+  // Event listener for failed login
   const handleLogin = async () => {
     try {
-      await xmppClient.start(); // Inicia la conexión XMPP
+      await xmppClient.start(); // start the XMPP client
     } catch (err) {
       console.error('Login failed:', err);
       alert('No se pudo iniciar sesión, revisa tus credenciales');
     }
   };
-
+  // Event listener for Register button
   const handleRegister = () => {
     navigate('/Register'); 
   };

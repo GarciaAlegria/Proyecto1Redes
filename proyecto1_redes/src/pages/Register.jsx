@@ -11,13 +11,14 @@ const Register = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  // register function
   const signup = async (username, fullName, email, password, onSuccess) => {
     try {
       const xmppClient = client({
         service: 'ws://alumchat.lol:7070/ws',
         resource: '',
       });
-
+      // Register event listeners
       return new Promise((resolve, reject) => {
         xmppClient.on('error', (err) => {
           if (err.code === 'ECONERROR') {
@@ -27,7 +28,7 @@ const Register = () => {
             reject({ status: false, message: 'Error in XMPP Client' });
           }
         });
-
+        // Open connection
         xmppClient.on('open', () => {
           console.log('Connection established');
           const iq = xml(
@@ -44,13 +45,13 @@ const Register = () => {
           );
           xmppClient.send(iq);
         });
-
+        // Register event listeners for incoming stanzas
         xmppClient.on('stanza', async (stanza) => {
           if (stanza.is('iq') && stanza.getAttr('id') === 'register') {
             await xmppClient.stop();
             xmppClient.removeAllListeners();
             onSuccess();
-
+            // Check if registration was successful
             if (stanza.getAttr('type') === 'result') {
               resolve({ status: true, message: 'Successful register' });
             } else if (stanza.getAttr('type') === 'error') {
@@ -64,7 +65,7 @@ const Register = () => {
             }
           }
         });
-
+        // Start the XMPP client
         xmppClient.start().catch((err) => {
           console.log(err);
         });
@@ -74,7 +75,7 @@ const Register = () => {
       throw error;
     }
   };
-
+  // Register function ends here
   const handleRegister = async (e) => {
     e.preventDefault();
     setIsLoading(true);
@@ -89,7 +90,7 @@ const Register = () => {
       setIsLoading(false);
     }
   };
-
+  // Return to login page
   const handlereturnlogin = () => {
     navigate('/');
   }
